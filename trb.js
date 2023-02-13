@@ -6,6 +6,9 @@ HEX_BYTE_RE = new RegExp("^[0-9a-fA-F]{"+HEX_BYTE_LENGTH+"}$");
 HEX_DELIMITER = "x";
 HEX_DELIMITER_RE = new RegExp(HEX_DELIMITER);
 
+
+SHELL = new ActiveXObject("WScript.Shell");
+
 // See https://learn.microsoft.com/en-us/office/vba/language/reference/user-interface-help/filesystemobject-object
 FS = new ActiveXObject("Scripting.FileSystemObject");
 
@@ -74,6 +77,14 @@ function bytesToLine(bytes) {
 }
 
 
+function bytesToBatchLine(bytes) {
+  line = "";
+  for (i in bytes)
+    line += "0x" + bytes[i].toString(HEX_BASE).toUpperCase();
+  return line;
+}
+
+
 function writeASCII(bytes, filePath) {
   file = FS.OpenTextFile(filePath, IOMode.Append, /*create*/true, Format.ASCII);
   file.Write(bytesToLine(bytes));
@@ -81,8 +92,11 @@ function writeASCII(bytes, filePath) {
 }
 
 
+// TODO: rename, because Unicode if not used.
 function writeUnicode(bytes, filePath) {
-  WScript.Echo(bytes);
+  // TODO: process long arguments.
+  // TODO: ensure workdir to make the `trh` available.
+  SHELL.Run('trh "'+bytesToBatchLine(bytes)+'" "'+filePath+'"');
 }
 
 
@@ -157,9 +171,7 @@ function UnicodeWritter(intByte) {
 
 
 function WritterFor(intByte) {
-  if (intByte <= MAX_ASCII)
-    return ASCIIWritter(intByte);
-  return UnicodeWritter(intByte);
+  return intByte <= MAX_ASCII ? ASCIIWritter(intByte) : UnicodeWritter(intByte);
 }
 
 
