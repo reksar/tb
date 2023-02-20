@@ -2,7 +2,7 @@
 
 setlocal
 
-set NAME=ordered
+set NAME=all-sorted
 
 rem [x00 .. xFF, xFF .. x00]
 set HEXLINE=x00x01x02x03x04x05x06x07x08x09x0Ax0Bx0Cx0Dx0Ex0Fx10x11x12x13x14x15
@@ -33,6 +33,6 @@ set HEXLINE=%HEXLINE%x34x33x32x31x30x2Fx2Ex2Dx2Cx2Bx2Ax29x28x27x26x25x24x23x22
 set HEXLINE=%HEXLINE%x21x20x1Fx1Ex1Dx1Cx1Bx1Ax19x18x17x16x15x14x13x12x11x10x0F
 set HEXLINE=%HEXLINE%x0Ex0Dx0Cx0Bx0Ax09x08x07x06x05x04x03x02x01x00
 
-call "%~dp0write-test-hexline" %HEXLINE% %NAME% && exit /b 0 || exit /b 1
+call "%~dp0write" %HEXLINE% %NAME% && exit /b 0 || exit /b 1
 
 endlocal
