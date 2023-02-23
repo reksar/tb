@@ -1,1 +1,3 @@
-@rd /q /s "%~dp0result" >NUL 2>&1
+@echo off
+echo Cleanup
+rd /q /s "%~dp0data" >NUL 2>&1

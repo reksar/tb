@@ -1,4 +1,4 @@
-RESULT_DIR_NAME = "result";
+RESULT_DIR_NAME = "data";
 
 TEST_NAMES = [
   "all-sorted",
@@ -15,7 +15,9 @@ SPACE = " ";
 // At least one hexbyte "xHH", where `H` is a hex digit.
 HEXLINE_RE = new RegExp(/^(x[0-9A-F]{2})+$/);
 // The length of the "xHH" triplet.
-HEXBYTE_LENGTH = 3;
+xHH_LENGTH = 3;
+// The length of the "HH" hex value.
+HH_LENGTH = 2;
 
 HEX_BASE = 16;
 MAX_BYTE = 255;
@@ -126,8 +128,11 @@ function TrimSuffix(line)
 function HexTriplet(byte_value)
 {
   hex_byte = byte_value.toString(HEX_BASE).toUpperCase();
-  prefix = hex_byte.length == 1 ? "x0" : "x";
-  return prefix + hex_byte;
+
+  if (1 <= hex_byte.length && hex_byte.length <= HH_LENGTH)
+    return (hex_byte.length == HH_LENGTH ? "x" : "x0") + hex_byte;
+
+  throw new Error("Unable to convert byte int value to hex!");
 }
 
 
@@ -170,29 +175,35 @@ function FirstDiffInfo(actual_hexline, expected_hexline)
   if (!expected_hexline.match(HEXLINE_RE))
     throw new Error("Invalid expected hexline!");
 
-  actual_bytecount = Math.round(actual_hexline.length / HEXBYTE_LENGTH);
-  expected_bytecount = Math.round(expected_hexline.length / HEXBYTE_LENGTH);
+  actual_bytecount = Math.round(actual_hexline.length / xHH_LENGTH);
+  expected_bytecount = Math.round(expected_hexline.length / xHH_LENGTH);
   min_bytes_total = Math.min(actual_bytecount, expected_bytecount);
 
-  for (var i = 0; i < min_bytes_total; i += HEXBYTE_LENGTH)
+  for (var i = 0; i < min_bytes_total; i += xHH_LENGTH)
   {
-    actual = actual_hexline.substring(i, i + HEXBYTE_LENGTH);
-    expected = expected_hexline.substring(i, i + HEXBYTE_LENGTH);
+    actual = actual_hexline.substring(i, i + xHH_LENGTH);
+    expected = expected_hexline.substring(i, i + xHH_LENGTH);
 
     if (actual != expected)
     {
-      byte_idx = Math.round(i / HEXBYTE_LENGTH);
-      return "- "+byte_idx+"th byte "+actual+" must be "+expected;
+      byte_idx = Math.round(i / xHH_LENGTH);
+      return "- "+byte_idx+"th byte 0"+actual+" must be 0"+expected;
     }
   }
 
   bytecount_diff = actual_bytecount - expected_bytecount;
-  if (bytecount_diff < 0) return "- missing "+Math.abs(bytecount_diff)+" bytes";
-  if (0 < bytecount_diff) return "- "+bytecount_diff+" extra bytes";
+
+  if (bytecount_diff < 0)
+    return "- missing tail of "+Math.abs(bytecount_diff)+" bytes";
+
+  if (0 < bytecount_diff)
+    return "- tail of "+bytecount_diff+" extra bytes";
 
   return "";
 }
 
+
+WScript.Echo("Checking test data");
 
 for (i in TEST_NAMES)
 {

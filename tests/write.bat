@@ -8,9 +8,11 @@ if "%name%" == "" exit /b 1
 
 call "%~dp0ensure-trb-path"
 
-set "TEST_DIR=%~dp0result"
+set "TEST_DIR=%~dp0data"
 set "outfile=%TEST_DIR%\%name%.bin"
 set "logfile=%TEST_DIR%\%name%.log"
+
+echo Writing test data "%name%"
 
 if not exist "%TEST_DIR%" mkdir "%TEST_DIR%"
 if exist "%outfile%" del "%outfile%"
