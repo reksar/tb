@@ -1,4 +1,5 @@
 RESULT_DIR_NAME = "result";
+
 TEST_NAMES = [
   "all-sorted",
   "random-ascii",
@@ -6,6 +7,7 @@ TEST_NAMES = [
   "random-any",
   "random-unprintable"
 ];
+
 BIN_EXT = ".bin";
 LOG_EXT = ".log";
 SPACE = " ";
@@ -22,22 +24,22 @@ MAX_BYTE = 255;
 // Prefer this than "ADODB" (see README).
 FS = new ActiveXObject("Scripting.FileSystemObject");
 
-testDir = FS.GetParentFolderName(WScript.ScriptFullName);
-resultDir = FS.BuildPath(testDir, RESULT_DIR_NAME);
+test_dir = FS.GetParentFolderName(WScript.ScriptFullName);
+result_dir = FS.BuildPath(test_dir, RESULT_DIR_NAME);
 
-if (!FS.FolderExists(resultDir)) throw new Error("No results to check!");
+if (!FS.FolderExists(result_dir)) throw new Error("No results to check!");
 
 
 /*
  * The `charCodeAt` returns an UTF-16 value greater than 255 for most chars
- * from `line[charIdx]`, when a char is in the ANSI range. In this case, this
+ * from `line[char_idx]`, when a char is in the ANSI range. In this case, this
  * function will convert the UTF-16 value to the range [128 .. 255].
  */
-function byteFromChar(line, charIdx)
+function ByteFromChar(line, char_idx)
 {
   // An integer between 0 and 65535 representing the UTF-16 code unit.
   // See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/charCodeAt
-  code = line.charCodeAt(charIdx);
+  code = line.charCodeAt(char_idx);
 
   if (code <= MAX_BYTE) return code;
 
@@ -102,34 +104,34 @@ function byteFromChar(line, charIdx)
 }
 
 
-function lastChar(line)
+function LastChar(line)
 {
   return line.substring(line.length - 1, line.length);
 }
 
 
-function withoutLastChar(line)
+function WithoutLastChar(line)
 {
   return line.substring(0, line.length - 1);
 }
 
 
-function trimSuffix(line)
+function TrimSuffix(line)
 {
-  while (lastChar(line) == SPACE) line = withoutLastChar(line);
+  while (LastChar(line) == SPACE) line = WithoutLastChar(line);
   return line;
 }
 
 
-function hexTriplet(byteValue)
+function HexTriplet(byte_value)
 {
-  hexByte = byteValue.toString(HEX_BASE).toUpperCase();
-  prefix = hexByte.length == 1 ? "x0" : "x";
-  return prefix + hexByte;
+  hex_byte = byte_value.toString(HEX_BASE).toUpperCase();
+  prefix = hex_byte.length == 1 ? "x0" : "x";
+  return prefix + hex_byte;
 }
 
 
-function testHexline(file)
+function TestHexline(file)
 {
   bytecount = FS.GetFile(file).Size;
 
@@ -138,17 +140,17 @@ function testHexline(file)
   bin.Close();
 
   hexline = "";
-  for (i = 0; i < bytecount; i++) hexline += hexTriplet(byteFromChar(line, i));
+  for (i = 0; i < bytecount; i++) hexline += HexTriplet(ByteFromChar(line, i));
   if (!hexline.match(HEXLINE_RE)) throw new Error("Invalid hexline!");
   return hexline;
 }
 
 
-function parseLog(file)
+function ParseLog(file)
 {
   log = FS.OpenTextFile(file);
-  hexline = trimSuffix(log.ReadLine());
-  elapsed_time = trimSuffix(log.ReadLine());
+  hexline = TrimSuffix(log.ReadLine());
+  elapsed_time = TrimSuffix(log.ReadLine());
   log.Close();
 
   if (!hexline.match(HEXLINE_RE)) throw new Error("Invalid hexline log!");
@@ -160,20 +162,54 @@ function parseLog(file)
 }
 
 
+function FirstDiffInfo(actual_hexline, expected_hexline)
+{
+  if (!actual_hexline.match(HEXLINE_RE))
+    throw new Error("Invalid actual hexline!");
+
+  if (!expected_hexline.match(HEXLINE_RE))
+    throw new Error("Invalid expected hexline!");
+
+  actual_bytecount = Math.round(actual_hexline.length / HEXBYTE_LENGTH);
+  expected_bytecount = Math.round(expected_hexline.length / HEXBYTE_LENGTH);
+  min_bytes_total = Math.min(actual_bytecount, expected_bytecount);
+
+  for (var i = 0; i < min_bytes_total; i += HEXBYTE_LENGTH)
+  {
+    actual = actual_hexline.substring(i, i + HEXBYTE_LENGTH);
+    expected = expected_hexline.substring(i, i + HEXBYTE_LENGTH);
+
+    if (actual != expected)
+    {
+      byte_idx = Math.round(i / HEXBYTE_LENGTH);
+      return "- "+byte_idx+"th byte "+actual+" must be "+expected;
+    }
+  }
+
+  bytecount_diff = actual_bytecount - expected_bytecount;
+  if (bytecount_diff < 0) return "- missing "+Math.abs(bytecount_diff)+" bytes";
+  if (0 < bytecount_diff) return "- "+bytecount_diff+" extra bytes";
+
+  return "";
+}
+
+
 for (i in TEST_NAMES)
 {
   name = TEST_NAMES[i];
-  binFile = FS.BuildPath(resultDir, name + BIN_EXT);
-  logFile = FS.BuildPath(resultDir, name + LOG_EXT);
+  bin_file = FS.BuildPath(result_dir, name + BIN_EXT);
+  log_file = FS.BuildPath(result_dir, name + LOG_EXT);
 
-  if (FS.FileExists(binFile) && FS.FileExists(logFile))
+  if (FS.FileExists(bin_file) && FS.FileExists(log_file))
   {
-    log = parseLog(logFile);
+    log = ParseLog(log_file);
+    hexline = TestHexline(bin_file);
+    diff = FirstDiffInfo(hexline, log.hexline);
 
-    if (testHexline(binFile) == log.hexline)
-      WScript.Echo("[OK]", name, "("+log.elapsed_time+")");
+    if (diff)
+      WScript.Echo("[ERR]", name, diff, "("+log.elapsed_time+")");
     else
-      WScript.Echo("[ERR]", name, "("+log.elapsed_time+")");
+      WScript.Echo("[OK]", name, "("+log.elapsed_time+")");
   }
   else WScript.Echo("[SKIP]", name, "- no test files!");
 }
