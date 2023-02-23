@@ -25,4 +25,3 @@ for /f %%i in ('call "%~dp0msdiff" "%start_time%" "%end_time%"') do (
   echo %%i ms >> "%logfile%"
 )
 endlocal
-exit
