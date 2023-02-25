@@ -6,7 +6,7 @@ set name=%~2
 
 if "%name%" == "" exit /b 1
 
-call "%~dp0ensure-trb-path"
+call "%~dp0ensure-tb-path"
 
 set "TEST_DIR=%~dp0data"
 set "outfile=%TEST_DIR%\%name%.bin"
@@ -20,7 +20,7 @@ if exist "%outfile%" del "%outfile%"
 echo %hexline% > "%logfile%"
 
 set start_time=%TIME%
-call trb %hexline% "%outfile%"
+call tb %hexline% "%outfile%"
 set end_time=%TIME%
 
 for /f %%i in ('call "%~dp0msdiff" "%start_time%" "%end_time%"') do (

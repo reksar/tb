@@ -1,11 +1,11 @@
-# trb
+# tb
 
 Translates {hexline} to bytes and *appends* them to {outfile}:
 
 ```batch
-trb {hexline} {outfile}
+tb {hexline} {outfile}
 
-trb x00x46x6Fx6FxFF "file.bin"
+tb x00x46x6Fx6FxFF "file.bin"
 ```
 
 ## The problem
