@@ -167,7 +167,7 @@ function ParseLog(file)
 }
 
 
-function FirstDiffInfo(actual_hexline, expected_hexline)
+function DiffMessage(actual_hexline, expected_hexline)
 {
   if (!actual_hexline.match(HEXLINE_RE))
     throw new Error("Invalid actual hexline!");
@@ -175,11 +175,9 @@ function FirstDiffInfo(actual_hexline, expected_hexline)
   if (!expected_hexline.match(HEXLINE_RE))
     throw new Error("Invalid expected hexline!");
 
-  actual_bytecount = Math.round(actual_hexline.length / xHH_LENGTH);
-  expected_bytecount = Math.round(expected_hexline.length / xHH_LENGTH);
-  min_bytes_total = Math.min(actual_bytecount, expected_bytecount);
+  min_length = Math.min(actual_hexline.length, expected_hexline.length);
 
-  for (var i = 0; i < min_bytes_total; i += xHH_LENGTH)
+  for (var i = 0; i < min_length; i += xHH_LENGTH)
   {
     actual = actual_hexline.substring(i, i + xHH_LENGTH);
     expected = expected_hexline.substring(i, i + xHH_LENGTH);
@@ -191,7 +189,8 @@ function FirstDiffInfo(actual_hexline, expected_hexline)
     }
   }
 
-  bytecount_diff = actual_bytecount - expected_bytecount;
+  length_diff = actual_hexline.length - expected_hexline.length;
+  bytecount_diff = Math.round(length_diff / xHH_LENGTH);
 
   if (bytecount_diff < 0)
     return "- missing tail of "+Math.abs(bytecount_diff)+" bytes";
@@ -215,7 +214,7 @@ for (i in TEST_NAMES)
   {
     log = ParseLog(log_file);
     hexline = TestHexline(bin_file);
-    diff = FirstDiffInfo(hexline, log.hexline);
+    diff = DiffMessage(hexline, log.hexline);
 
     if (diff)
       WScript.Echo("[ERR]", name, diff, "("+log.elapsed_time+")");
