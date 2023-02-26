@@ -6,6 +6,8 @@ Translates {hexline} to bytes and *appends* them to {outfile}:
 tb {hexline} {outfile}
 
 tb x00x46x6Fx6FxFF "file.bin"
+
+tests\test
 ```
 
 ## The problem

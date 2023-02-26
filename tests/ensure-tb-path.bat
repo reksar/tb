@@ -11,7 +11,7 @@ rem  We should get this exit code by running `tb` without {outfile}.
 set ERR_NO_OUTFILE=2
 
 rem  Provoking the %ERR_NO_OUTFILE%.
-tb x > NUL 2>&1
+tb x 2>NUL
 
 if not "%ExitCode%" == "%ERR_NO_OUTFILE%" (
   rem  We did not get the expected error, so assume that the `tb` is not
