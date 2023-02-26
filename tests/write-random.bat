@@ -1,4 +1,5 @@
 @echo off
+
 rem  --------------------------------------------------------------------------
 rem  Generates and writes %hexline% of {bytes_total} random bytes, where each
 rem  byte value is in the range {min_byte} .. {max_byte}:
@@ -6,6 +7,7 @@ rem
 rem    write-random {bytes_total} {name} {min_byte} {max_byte}
 rem
 rem  --------------------------------------------------------------------------
+
 setlocal
 set /a bytes_total=%~1
 set name=%~2
