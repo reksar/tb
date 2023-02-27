@@ -22,5 +22,5 @@ These may not be available on some Windows configurations:
 * `powershell`
 * ActiveX ADO - "ADODB"
 
-[JREPL](https://www.dostips.com/forum/viewtopic.php?f=3&t=6044) uses "ADODB",
-so it cannot be used.
+[JREPL](https://www.dostips.com/forum/viewtopic.php?f=3&t=6044) uses "ADODB"
+under the cut.
