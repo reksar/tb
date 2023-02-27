@@ -1,1 +1,12 @@
-@call "%~dp0write-random" 512 random-ascii 62 126 && exit /b 0 || exit /b 1
+@echo off
+setlocal
+set bytecount=512
+set min_byte=62
+set max_byte=126
+
+rem  The %name% of this script is expected to be "write-%test_name%".
+set name=%~n0
+set test_name=%name:~6%
+call "%~dp0write-random" %bytecount% %test_name% %min_byte% %max_byte% ^
+  && exit /b 0 || exit /b 1
+endlocal

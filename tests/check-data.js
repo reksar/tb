@@ -1,13 +1,5 @@
-RESULT_DIR_NAME = "data";
-
-TEST_NAMES = [
-  "all-sorted",
-  "random-ascii",
-  "random-ansi",
-  "random-any",
-  "random-unprintable"
-];
-
+DATA_DIR_NAME = "data";
+TESTLIST_NAME = "testlist.txt";
 BIN_EXT = ".bin";
 LOG_EXT = ".log";
 SPACE = " ";
@@ -27,9 +19,10 @@ MAX_BYTE = 255;
 FS = new ActiveXObject("Scripting.FileSystemObject");
 
 test_dir = FS.GetParentFolderName(WScript.ScriptFullName);
-result_dir = FS.BuildPath(test_dir, RESULT_DIR_NAME);
+data_dir = FS.BuildPath(test_dir, DATA_DIR_NAME);
+testlist = FS.BuildPath(test_dir, TESTLIST_NAME);
 
-if (!FS.FolderExists(result_dir)) throw new Error("No results to check!");
+if (!FS.FolderExists(data_dir)) throw new Error("No results to check!");
 
 
 /*
@@ -202,13 +195,31 @@ function DiffMessage(actual_hexline, expected_hexline)
 }
 
 
-WScript.Echo("Checking test data");
-
-for (i in TEST_NAMES)
+function read_line_array(file)
 {
-  name = TEST_NAMES[i];
-  bin_file = FS.BuildPath(result_dir, name + BIN_EXT);
-  log_file = FS.BuildPath(result_dir, name + LOG_EXT);
+  lines = [];
+  txt = FS.OpenTextFile(file);
+
+  while (!txt.AtEndOfStream)
+  {
+    line = txt.ReadLine();
+
+    if (line) lines.push(line);
+  }
+
+  txt.Close();
+  return lines;
+}
+
+
+WScript.Echo("Checking test data");
+test_names = read_line_array(testlist);
+
+for (i in test_names)
+{
+  name = test_names[i];
+  bin_file = FS.BuildPath(data_dir, name + BIN_EXT);
+  log_file = FS.BuildPath(data_dir, name + LOG_EXT);
 
   if (FS.FileExists(bin_file) && FS.FileExists(log_file))
   {
