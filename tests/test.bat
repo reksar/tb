@@ -3,8 +3,7 @@ setlocal
 
 if "%1" == "-c" goto :CHECK
 
-rem  Write test data for each test in the testlist.
-for /f %%i in ('type "%~dp0testlist.txt"') do call "%~dp0write-%%i"
+for %%i in ("%~dp0write-*.bat") do call "%%i"
 
 :CHECK
 cscript /nologo "%~dp0check-data.js"

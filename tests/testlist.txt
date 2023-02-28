@@ -1,5 +1,0 @@
-asc-desc-range
-random-unprintable
-random-ascii
-random-ansi
-random-any

@@ -4,13 +4,23 @@ Translates {hexline} to bytes and *appends* them to {outfile}:
 
 ```batch
 tb {hexline} {outfile}
-tb x00x46x6Fx6FxFF "file.bin"
 
-tests\test
-tests\test -c
+tb x00x46x6Fx6FxFF "file.bin"
 ```
 
-**The problem** described on [stackoverflow](https://stackoverflow.com/questions/47750732/write-hex-values-to-file-in-windows-batch)
+### Tests
+
+Run all: `tests\test`. Add the `-c` key to check test data without writing.
+
+Produces test data with `tests\write-<test-name>.bat` *writers*.
+Each *writer* produces two files:
+`tests\data\<test-name>.bin` and `tests\data\<test-name>.log`.
+
+The `tests\check-data.js` is used to check all the produced test data.
+
+### The problem
+
+Described on [stackoverflow](https://stackoverflow.com/questions/47750732/write-hex-values-to-file-in-windows-batch)
 
 But all the solutions presented there have some **restrictions**.
 

@@ -2,22 +2,21 @@
 
 setlocal
 set hexline=%~1
-set name=%~2
+set test_name=%~2
 
-if "%name%" == "" exit /b 1
+if "%test_name%" == "" exit /b 1
 
 call "%~dp0ensure-tb-path"
 
 set "TEST_DIR=%~dp0data"
-set "outfile=%TEST_DIR%\%name%.bin"
-set "logfile=%TEST_DIR%\%name%.log"
+set "outfile=%TEST_DIR%\%test_name%.bin"
+set "logfile=%TEST_DIR%\%test_name%.log"
 
-echo Writing test data "%name%"
+echo Writing test data "%test_name%"
 
 if not exist "%TEST_DIR%" mkdir "%TEST_DIR%"
 if exist "%outfile%" del "%outfile%"
-
-echo %hexline% > "%logfile%"
+echo %hexline%> "%logfile%"
 
 set start_time=%TIME%
 call tb %hexline% "%outfile%"

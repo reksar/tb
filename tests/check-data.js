@@ -1,8 +1,13 @@
 DATA_DIR_NAME = "data";
-TESTLIST_NAME = "testlist.txt";
 BIN_EXT = ".bin";
 LOG_EXT = ".log";
+BAT_EXT = ".bat"
 SPACE = " ";
+
+// Writer file name is "write-*.bat".
+WRITER_PREFIX = "write-";
+// Match will be an array of two items: 0 - full name, 1 - test name.
+WRITER_RE = new RegExp(/write-(.*)\.bat/);
 
 // At least one hexbyte "xHH", where `H` is a hex digit.
 HEXLINE_RE = new RegExp(/^(x[0-9A-F]{2})+$/);
@@ -20,7 +25,6 @@ FS = new ActiveXObject("Scripting.FileSystemObject");
 
 test_dir = FS.GetParentFolderName(WScript.ScriptFullName);
 data_dir = FS.BuildPath(test_dir, DATA_DIR_NAME);
-testlist = FS.BuildPath(test_dir, TESTLIST_NAME);
 
 if (!FS.FolderExists(data_dir)) throw new Error("No results to check!");
 
@@ -195,25 +199,25 @@ function DiffMessage(actual_hexline, expected_hexline)
 }
 
 
-function read_line_array(file)
+function ReadTestNames()
 {
-  lines = [];
-  txt = FS.OpenTextFile(file);
+  names = [];
 
-  while (!txt.AtEndOfStream)
+  files = FS.GetFolder(test_dir).Files;
+
+  for (i = new Enumerator(files); !i.atEnd(); i.moveNext())
   {
-    line = txt.ReadLine();
-
-    if (line) lines.push(line);
+    path = i.item();
+    writer_match = FS.GetFile(path).Name.match(WRITER_RE);
+    if (writer_match) names.push(writer_match[1]);
   }
 
-  txt.Close();
-  return lines;
+  return names;
 }
 
 
 WScript.Echo("Checking test data");
-test_names = read_line_array(testlist);
+test_names = ReadTestNames();
 
 for (i in test_names)
 {

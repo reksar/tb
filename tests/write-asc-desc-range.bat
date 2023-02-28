@@ -34,4 +34,5 @@ rem  The %name% of this script is expected to be "write-%test_name%".
 set name=%~n0
 set test_name=%name:~6%
 call "%~dp0write" %HEXLINE% %test_name% && exit /b 0 || exit /b 1
+
 endlocal
