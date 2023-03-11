@@ -10,8 +10,8 @@ rem
 rem  This is a port of UNIX-like `echo -n -e '\x00\x46\x6F\x6F\xFF' > file.bin`
 rem  for Windows.
 rem
-rem  The main idea is to use `copy /b bytes\<byte>.bin + {outfile} {outfile}`
-rem  for appending a byte to {outfile}, where <byte> is an int [0..255].
+rem  The idea is to use `copy /b bytes\<byte>.bin + {outfile} {outfile}` for
+rem  appending a byte to {outfile}, where <byte> is an int [0..255].
 rem  --------------------------------------------------------------------------
 
 rem  NOTE: `DisableDelayedExpansion` to process some path symbols correctly,

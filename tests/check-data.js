@@ -20,13 +20,13 @@ HEX_BASE = 16;
 MAX_BYTE = 255;
 
 
-// Prefer this than "ADODB" (see README).
-FS = new ActiveXObject("Scripting.FileSystemObject");
+// Prefer this than "ADODB" (see README). But it is limited to text mode.
+fs = new ActiveXObject("Scripting.FileSystemObject");
 
-test_dir = FS.GetParentFolderName(WScript.ScriptFullName);
-data_dir = FS.BuildPath(test_dir, DATA_DIR_NAME);
+test_dir = fs.GetParentFolderName(WScript.ScriptFullName);
+data_dir = fs.BuildPath(test_dir, DATA_DIR_NAME);
 
-if (!FS.FolderExists(data_dir)) throw new Error("No results to check!");
+if (!fs.FolderExists(data_dir)) throw new Error("No results to check!");
 
 
 /*
@@ -122,6 +122,12 @@ function TrimSuffix(line)
 }
 
 
+function ReadLine(file)
+{
+  return TrimSuffix(file.ReadLine());
+}
+
+
 function HexTriplet(byte_value)
 {
   hex_byte = byte_value.toString(HEX_BASE).toUpperCase();
@@ -135,9 +141,9 @@ function HexTriplet(byte_value)
 
 function TestHexline(file)
 {
-  bytecount = FS.GetFile(file).Size;
+  bytecount = fs.GetFile(file).Size;
 
-  bin = FS.OpenTextFile(file);
+  bin = fs.OpenTextFile(file);
   line = bin.Read(bytecount);
   bin.Close();
 
@@ -150,9 +156,16 @@ function TestHexline(file)
 
 function ParseLog(file)
 {
-  log = FS.OpenTextFile(file);
-  hexline = TrimSuffix(log.ReadLine());
-  elapsed_time = TrimSuffix(log.ReadLine());
+  log = fs.OpenTextFile(file);
+
+  hexline = ReadLine(log);
+
+  try {
+    elapsed_time = ReadLine(log);
+  } catch (err) {
+    elapsed_time = "? ms";
+  }
+
   log.Close();
 
   if (!hexline.match(HEXLINE_RE)) throw new Error("Invalid hexline log!");
@@ -203,12 +216,12 @@ function ReadTestNames()
 {
   names = [];
 
-  files = FS.GetFolder(test_dir).Files;
+  files = fs.GetFolder(test_dir).Files;
 
   for (i = new Enumerator(files); !i.atEnd(); i.moveNext())
   {
     path = i.item();
-    writer_match = FS.GetFile(path).Name.match(WRITER_RE);
+    writer_match = fs.GetFile(path).Name.match(WRITER_RE);
     if (writer_match) names.push(writer_match[1]);
   }
 
@@ -222,10 +235,10 @@ test_names = ReadTestNames();
 for (i in test_names)
 {
   name = test_names[i];
-  bin_file = FS.BuildPath(data_dir, name + BIN_EXT);
-  log_file = FS.BuildPath(data_dir, name + LOG_EXT);
+  bin_file = fs.BuildPath(data_dir, name + BIN_EXT);
+  log_file = fs.BuildPath(data_dir, name + LOG_EXT);
 
-  if (FS.FileExists(bin_file) && FS.FileExists(log_file))
+  if (fs.FileExists(bin_file) && fs.FileExists(log_file))
   {
     log = ParseLog(log_file);
     hexline = TestHexline(bin_file);

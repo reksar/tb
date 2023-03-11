@@ -34,4 +34,4 @@ These may not be available on some Windows configurations:
 under the cut.
 
 This solution is devoid of these problems. Although performance leaves a lot to
-be desired.
+be desired. Current speed ~ 70 byte / s.
