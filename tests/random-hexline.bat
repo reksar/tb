@@ -1,4 +1,5 @@
 @echo off
+setlocal EnableDelayedExpansion
 
 rem  --------------------------------------------------------------------------
 rem  Generates %hexline% of {bytecount} "xHH" triplets representing a random
@@ -18,8 +19,6 @@ rem  `echo`ing truncates the hexline to the length limit.
 rem
 rem  NOTE: Generates ~ 55 byte / s
 rem  --------------------------------------------------------------------------
-
-setlocal EnableDelayedExpansion
 
 set /a bytecount=%~1
 set /a min_byte=%~2
@@ -45,6 +44,6 @@ for /l %%i in (1,1,%bytecount%) do (
 )
 
 echo %hexline%
-
 exit /b 0
+
 endlocal

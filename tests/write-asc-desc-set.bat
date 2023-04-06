@@ -1,6 +1,11 @@
 @echo off
 setlocal
 
+rem  --------------------------------------------------------------------------
+rem  Writes the ordered set (ascending and descending) of the entire hex
+rem  triplets range.
+rem  --------------------------------------------------------------------------
+
 rem [x00 .. xFF, xFF .. x00]
 set HEXLINE=x00x01x02x03x04x05x06x07x08x09x0Ax0Bx0Cx0Dx0Ex0Fx10x11x12x13x14x15
 set HEXLINE=%HEXLINE%x16x17x18x19x1Ax1Bx1Cx1Dx1Ex1Fx20x21x22x23x24x25x26x27x28

@@ -1,20 +1,20 @@
 @echo off
-
 setlocal
+
 set hexline=%~1
 set test_name=%~2
 
 if "%test_name%" == "" exit /b 1
 
-call "%~dp0ensure-tb-path"
+set root=%~dp0
+set "workdir=%root%data"
+set "outfile=%workdir%\%test_name%.bin"
+set "logfile=%workdir%\%test_name%.log"
 
-set "TEST_DIR=%~dp0data"
-set "outfile=%TEST_DIR%\%test_name%.bin"
-set "logfile=%TEST_DIR%\%test_name%.log"
-
+call "%root%ensure-tb-path"
 echo Writing test data "%test_name%"
 
-if not exist "%TEST_DIR%" mkdir "%TEST_DIR%"
+if not exist "%workdir%" mkdir "%workdir%"
 if exist "%outfile%" del "%outfile%"
 echo %hexline%> "%logfile%"
 
@@ -22,7 +22,8 @@ set start_time=%TIME%
 call tb %hexline% "%outfile%"
 set end_time=%TIME%
 
-for /f %%i in ('call "%~dp0msdiff" "%start_time%" "%end_time%"') do (
+for /f %%i in ('call "%root%time-diff" "%start_time%" "%end_time%"') do (
   echo %%i ms >> "%logfile%"
 )
+
 endlocal

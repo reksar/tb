@@ -1,32 +1,290 @@
-DATA_DIR_NAME = "data";
-BIN_EXT = ".bin";
-LOG_EXT = ".log";
-BAT_EXT = ".bat"
-SPACE = " ";
-
-// Writer file name is "write-*.bat".
-WRITER_PREFIX = "write-";
-// Match will be an array of two items: 0 - full name, 1 - test name.
-WRITER_RE = new RegExp(/write-(.*)\.bat/);
-
-// At least one hexbyte "xHH", where `H` is a hex digit.
-HEXLINE_RE = new RegExp(/^(x[0-9A-F]{2})+$/);
-// The length of the "xHH" triplet.
-xHH_LENGTH = 3;
-// The length of the "HH" hex value.
-HH_LENGTH = 2;
-
-HEX_BASE = 16;
-MAX_BYTE = 255;
+FS = new ActiveXObject("Scripting.FileSystemObject");
+TEST_DIR = FS.GetParentFolderName(WScript.ScriptFullName);
+DATA_DIR = FS.BuildPath(TEST_DIR, "data");
 
 
-// Prefer this than "ADODB" (see README). But it is limited to text mode.
-fs = new ActiveXObject("Scripting.FileSystemObject");
+WScript.Echo("Checking test data ...");
 
-test_dir = fs.GetParentFolderName(WScript.ScriptFullName);
-data_dir = fs.BuildPath(test_dir, DATA_DIR_NAME);
+var test_names = FilterArray(MapArray(Files(TEST_DIR), MatchTestName));
 
-if (!fs.FolderExists(data_dir)) throw new Error("No results to check!");
+for (var i in test_names) {
+  try {
+    WScript.Echo(Report(Check(test_names[i])));
+  } catch (err) {
+    WScript.Echo(Report(err));
+  }
+}
+
+
+function Files(dir) {
+
+  // One does not simply walk through this shit.
+  var shit = FS.GetFolder(dir).Files;
+
+  var files = [];
+  for (var i = new Enumerator(shit); !i.atEnd(); i.moveNext())
+    files.push(i.item());
+  return files;
+}
+
+
+function MatchTestName(file) {
+
+  // Test writer name is "write-<test name>.bat".
+  TEST_WRITER = new RegExp("write-(.*)\.bat", "i");
+
+  // The `match` for `TEST_WRITER` is the array [<writer name>, <test name>].
+  // This is the index of the <test name>.
+  TEST_NAME_PART = 1;
+
+  var match = file.Name.match(TEST_WRITER);
+  return match && match[TEST_NAME_PART];
+}
+
+
+function Check(test_name) {
+  var pipeline = [
+    DataFiles,
+    MissingFiles,
+    ElapsedTime,
+    HexIterators,
+    HexDiff,
+    LengthDiff
+  ];
+  var data = {
+    name: test_name,
+    ready_to_report: false
+  };
+  return ReduceArray(pipeline, PassData, data);
+}
+
+
+/*
+ * Extends `data` with the result of the `callback`. Then passes the `result`
+ * further or interrupts the pipeline when `result` is `ready_to_report`.
+ */
+function PassData(data, callback) {
+  var result = ExtendData(data, callback(data));
+  if (result.ready_to_report)
+    throw result;
+  return result;
+}
+
+
+function DataFiles(data) {
+  return {
+    bin_file: FS.BuildPath(DATA_DIR, data.name + ".bin"),
+    log_file: FS.BuildPath(DATA_DIR, data.name + ".log")
+  };
+}
+
+
+function MissingFiles(data) {
+  var files = [
+    data.log_file,
+    data.bin_file
+  ];
+  var missing_files = FilterArray(files, IsFileMissing);
+  var missing_names = MapArray(missing_files, FileName);
+  return {
+    missing_files: missing_names,
+    ready_to_report: missing_names.length
+  };
+}
+
+
+function ElapsedTime(data) {
+
+  TIME_MS = new RegExp(/^\d+ ms\s*$/);
+
+  var log = new LineIterator(data.log_file);
+
+  while (!log.Empty())
+    if (time = log.Next().match(TIME_MS))
+      return {elapsed_time: time[0]};
+
+  return {elapsed_time: "? ms"};
+}
+
+
+function HexIterators(data) {
+  return {
+    actual: new CountIterator(new BinHexIterator(data.bin_file)),
+    expected: new CountIterator(new TxtHexIterator(data.log_file))
+  };
+}
+
+
+function HexDiff(data) {
+  while (!(data.actual.Empty() || data.expected.Empty())) {
+    var actual = data.actual.Next();
+    var expected = data.expected.Next();
+    if (actual !== expected)
+      return {
+        hex_diff: {
+          index: data.actual.Count(),
+          actual: actual,
+          expected: expected
+        },
+        ready_to_report: true
+    };
+  }
+}
+
+
+function LengthDiff(data) {
+  while (data.actual.Next());
+  while (data.expected.Next());
+  var diff = data.actual.Count() - data.expected.Count();
+  return {
+    length_diff: diff,
+    ready_to_report: diff
+  };
+}
+
+
+function Report(data) {
+
+  function MissingFiles() {
+    return data.missing_files.length &&
+      Skip("missing files: " + data.missing_files.join(", "));
+  }
+
+  function HexDiff() {
+    if (data.hex_diff)
+      with (data.hex_diff)
+        return Err(index+"th byte 0"+actual+" must be 0"+expected);
+  }
+
+  function LengthDiff() {
+
+    if (data.length_diff < 0)
+      return Err("missing tail of " + Math.abs(data.length_diff) + " bytes");
+
+    if (0 < data.length_diff)
+      return Err("tail of " + data.length_diff + " extra bytes");
+  }
+
+  function Skip(message) {
+    return Prefix("[SKIP]") + " - " + message;
+  }
+
+  function Err(message) {
+    return Prefix("[ERR]") + " - " + message + " - " + data.elapsed_time;
+  }
+
+  function Ok() {
+    return Prefix("[OK]") + " - " + data.elapsed_time;
+  }
+
+  function Prefix(status) {
+    return status + " " + data.name;
+  }
+
+  if (data.ready_to_report === undefined)
+    throw data;
+
+  return MissingFiles() || HexDiff() || LengthDiff() || Ok();
+}
+
+
+/*
+ * Merge shallow copies of objects.
+ */
+function ExtendData(origin, extra) {
+  var result = {};
+  for (var i in origin) result[i] = origin[i];
+  for (var i in extra) result[i] = extra[i];
+  return result;
+}
+
+
+function LineIterator(file) {
+
+  var txt = FS.OpenTextFile(file);
+
+  this.Empty = function() {
+    return txt.AtEndOfStream;
+  }
+
+  this.Next = function() {
+    if (!this.Empty())
+      return txt.ReadLine();
+  }
+}
+
+
+function BinHexIterator(file) {
+
+  // We are working in ASCII mode.
+  CHAR_SIZE = 1;
+
+  var txt = FS.OpenTextFile(file);
+
+  this.Empty = function() {
+    return txt.AtEndOfStream;
+  }
+
+  this.Next = function() {
+    if (!this.Empty())
+      return xHH(DecodeChar(txt.Read(CHAR_SIZE)));
+  }
+}
+
+
+function TxtHexIterator(file) {
+
+  xHH_RE = new RegExp(/^x[0-9A-F]{2}$/);
+  xHH_LENGTH = 3;
+
+  var lines = new LineIterator(file);
+  var line = lines.Next();
+  var i = 0;
+  var xHH = ReadNext();
+
+  this.Empty = function() {
+    return !xHH;
+  }
+
+  this.Next = function() {
+    if (!this.Empty()) {
+      var current = xHH;
+      xHH = ReadNext();
+      return current;
+    }
+  }
+
+  function ReadNext() {
+
+    if (line.length <= i) {
+      line = lines.Next();
+      i = 0;
+    }
+
+    var match = line.substring(i, i += xHH_LENGTH).match(xHH_RE);
+    return match && match[0];
+  }
+}
+
+
+/*
+ * Wrapper for `iterable` to `count` iterations passed.
+ */
+function CountIterator(iterable) {
+
+  var count = 0;
+
+  this.Count = function() {
+    return count;
+  }
+
+  this.Empty = iterable.Empty;
+
+  this.Next = function() {
+    if (!this.Empty())
+      return ++count && iterable.Next();
+  }
+}
 
 
 /*
@@ -34,11 +292,13 @@ if (!fs.FolderExists(data_dir)) throw new Error("No results to check!");
  * from `line[char_idx]`, when a char is in the ANSI range. In this case, this
  * function will convert the UTF-16 value to the range [128 .. 255].
  */
-function ByteFromChar(line, char_idx)
-{
+function DecodeChar(char) {
+
+  MAX_BYTE = 255;
+
   // An integer between 0 and 65535 representing the UTF-16 code unit.
   // See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/charCodeAt
-  code = line.charCodeAt(char_idx);
+  var code = char.charCodeAt(0);
 
   if (code <= MAX_BYTE) return code;
 
@@ -47,8 +307,7 @@ function ByteFromChar(line, char_idx)
 
   if (1040 <= code && code <= 1103) return code - 848;
 
-  switch (code)
-  {
+  switch (code) {
 		case 1026: return 128;
 		case 1027: return 129;
 		case 8218: return 130;
@@ -99,155 +358,47 @@ function ByteFromChar(line, char_idx)
 		case 1111: return 191;
   }
 
-  throw new Error("Invalid char code!");
+  throw new Error("Char decoding error!");
 }
 
 
-function LastChar(line)
-{
-  return line.substring(line.length - 1, line.length);
+/*
+ * Converts `int_byte` [0 .. 255] to the string ["x00" .. "xFF"].
+ */
+function xHH(int_byte) {
+  HEX_BASE = 16;
+  var hex_byte = int_byte.toString(HEX_BASE).toUpperCase();
+  return (hex_byte.length == 1 ? "x0" : "x") + hex_byte;
 }
 
 
-function WithoutLastChar(line)
-{
-  return line.substring(0, line.length - 1);
+function FilterArray(array, callback) {
+  var match = callback || Value;
+  var result = [];
+  for (var i in array)
+    if (match(array[i]))
+      result.push(array[i]);
+  return result;
 }
 
 
-function TrimSuffix(line)
-{
-  while (LastChar(line) == SPACE) line = WithoutLastChar(line);
-  return line;
+function MapArray(array, callback) {
+  var result = [];
+  for (var i in array)
+    result.push(callback(array[i]));
+  return result;
 }
 
 
-function ReadLine(file)
-{
-  return TrimSuffix(file.ReadLine());
+function ReduceArray(array, callback, initial) {
+  var i = 0;
+  var result = initial !== undefined ? initial : array[i++];
+  while (i < array.length)
+    result = callback(result, array[i++]);
+  return result;
 }
 
 
-function HexTriplet(byte_value)
-{
-  hex_byte = byte_value.toString(HEX_BASE).toUpperCase();
-
-  if (1 <= hex_byte.length && hex_byte.length <= HH_LENGTH)
-    return (hex_byte.length == HH_LENGTH ? "x" : "x0") + hex_byte;
-
-  throw new Error("Unable to convert byte int value to hex!");
-}
-
-
-function TestHexline(file)
-{
-  bytecount = fs.GetFile(file).Size;
-
-  bin = fs.OpenTextFile(file);
-  line = bin.Read(bytecount);
-  bin.Close();
-
-  hexline = "";
-  for (i = 0; i < bytecount; i++) hexline += HexTriplet(ByteFromChar(line, i));
-  if (!hexline.match(HEXLINE_RE)) throw new Error("Invalid hexline!");
-  return hexline;
-}
-
-
-function ParseLog(file)
-{
-  log = fs.OpenTextFile(file);
-
-  hexline = ReadLine(log);
-
-  try {
-    elapsed_time = ReadLine(log);
-  } catch (err) {
-    elapsed_time = "? ms";
-  }
-
-  log.Close();
-
-  if (!hexline.match(HEXLINE_RE)) throw new Error("Invalid hexline log!");
-
-  return {
-    hexline: hexline,
-    elapsed_time: elapsed_time
-  };
-}
-
-
-function DiffMessage(actual_hexline, expected_hexline)
-{
-  if (!actual_hexline.match(HEXLINE_RE))
-    throw new Error("Invalid actual hexline!");
-
-  if (!expected_hexline.match(HEXLINE_RE))
-    throw new Error("Invalid expected hexline!");
-
-  min_length = Math.min(actual_hexline.length, expected_hexline.length);
-
-  for (var i = 0; i < min_length; i += xHH_LENGTH)
-  {
-    actual = actual_hexline.substring(i, i + xHH_LENGTH);
-    expected = expected_hexline.substring(i, i + xHH_LENGTH);
-
-    if (actual != expected)
-    {
-      byte_idx = Math.round(i / xHH_LENGTH);
-      return "- "+byte_idx+"th byte 0"+actual+" must be 0"+expected;
-    }
-  }
-
-  length_diff = actual_hexline.length - expected_hexline.length;
-  bytecount_diff = Math.round(length_diff / xHH_LENGTH);
-
-  if (bytecount_diff < 0)
-    return "- missing tail of "+Math.abs(bytecount_diff)+" bytes";
-
-  if (0 < bytecount_diff)
-    return "- tail of "+bytecount_diff+" extra bytes";
-
-  return "";
-}
-
-
-function ReadTestNames()
-{
-  names = [];
-
-  files = fs.GetFolder(test_dir).Files;
-
-  for (i = new Enumerator(files); !i.atEnd(); i.moveNext())
-  {
-    path = i.item();
-    writer_match = fs.GetFile(path).Name.match(WRITER_RE);
-    if (writer_match) names.push(writer_match[1]);
-  }
-
-  return names;
-}
-
-
-WScript.Echo("Checking test data");
-test_names = ReadTestNames();
-
-for (i in test_names)
-{
-  name = test_names[i];
-  bin_file = fs.BuildPath(data_dir, name + BIN_EXT);
-  log_file = fs.BuildPath(data_dir, name + LOG_EXT);
-
-  if (fs.FileExists(bin_file) && fs.FileExists(log_file))
-  {
-    log = ParseLog(log_file);
-    hexline = TestHexline(bin_file);
-    diff = DiffMessage(hexline, log.hexline);
-
-    if (diff)
-      WScript.Echo("[ERR]", name, diff, "("+log.elapsed_time+")");
-    else
-      WScript.Echo("[OK]", name, "("+log.elapsed_time+")");
-  }
-  else WScript.Echo("[SKIP]", name, "- no test files!");
-}
+function IsFileMissing(file) {return !FS.FileExists(file)}
+function FileName(file) {return FS.GetFileName(file)}
+function Value(x) {return x}
