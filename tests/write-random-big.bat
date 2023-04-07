@@ -8,7 +8,7 @@ rem
 rem  NOTE: will be skipped if MS JScript is not available.
 rem  --------------------------------------------------------------------------
 
-set BYTECOUNT=2001
+set BYTECOUNT=5000
 set MIN_BYTE=0
 set MAX_BYTE=255
 
