@@ -287,11 +287,6 @@ function CountIterator(iterable) {
 }
 
 
-/*
- * The `charCodeAt` returns an UTF-16 value greater than 255 for most chars
- * from `line[char_idx]`, when a char is in the ANSI range. In this case, this
- * function will convert the UTF-16 value to the range [128 .. 255].
- */
 function DecodeChar(char) {
 
   MAX_BYTE = 255;
@@ -302,8 +297,11 @@ function DecodeChar(char) {
 
   if (code <= MAX_BYTE) return code;
 
-  // Below is an empirical rules for converting UTF-16 to a byte value in the
-  // range [128 .. 255], when a `code > MAX_BYTE`.
+  // This script reads test bin files as text in system default encoding,
+  // e.g. cp1251 or cp1252. Most of byte values [128 .. 255] can be encoded as
+  // chars with codes > 255.
+
+  // Here is the decoding for cp1251.
 
   if (1040 <= code && code <= 1103) return code - 848;
 
@@ -358,7 +356,7 @@ function DecodeChar(char) {
 		case 1111: return 191;
   }
 
-  throw new Error("Char decoding error!");
+  throw new Error("Char decoding error! Mind your system codepage.");
 }
 
 
