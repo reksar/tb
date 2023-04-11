@@ -4,18 +4,18 @@
  *
  *   cscript random-hexline.js {byte_count} {min_byte} {max_byte} {outfile}
  *
- *   cscript random-hexline.js 3333 0 255 hexline.txt
+ *   cscript random-hexline.js 5000 0 255 hexline.txt
  *
- * Splits the generated hexline into hexlines so that each line does not exceed
+ * Splits the generated hexline into parts so that each line does not exceed
  * the line length limit for cmd.
  */
 
 FS = new ActiveXObject("Scripting.FileSystemObject");
-TEST_DIR = FS.GetParentFolderName(WScript.ScriptFullName);
 
-var util = eval(FS.OpenTextFile(FS.BuildPath(TEST_DIR, "util.js")).ReadAll());
+var util = ImportUtil();
 
 
+// Parse args {{{
 var byte_count = parseInt(WScript.Arguments(0));
 var min_byte = parseInt(WScript.Arguments(1));
 var max_byte = parseInt(WScript.Arguments(2));
@@ -27,19 +27,18 @@ if (min_byte < 0 || util.MAX_BYTE < min_byte)
   throw new Error("Invalid min_byte!");
 if (max_byte < min_byte || util.MAX_BYTE < max_byte)
   throw new Error("Invalid max_byte!");
+// }}}
 
 
 var random_bytes = new RandomGenerator(byte_count, min_byte, max_byte);
-var hexlines = new util.HexLineGenerator(random_bytes);
+var hexlines = new util.HexlineGenerator(random_bytes);
 
-var file = FS.CreateTextFile(outfile, /*rewrite*/true);
-
-while (!hexlines.Empty())
-  file.WriteLine(hexlines.Next());
-
-file.Close();
+with (FS.CreateTextFile(outfile, /*rewrite*/true))
+  while (!hexlines.Empty())
+    WriteLine(hexlines.Next());
 
 
+// Helpers {{{
 function RandomGenerator(count, min, max) {
 
   // Precalculation.
@@ -55,3 +54,12 @@ function RandomGenerator(count, min, max) {
     return ++i && Math.round(Math.random() * range) + min;
   }
 }
+
+
+function ImportUtil() {
+  var tests = FS.GetParentFolderName(WScript.ScriptFullName);
+  var root = FS.GetParentFolderName(tests);
+  var module = FS.BuildPath(root, "util.js");
+  return eval(FS.OpenTextFile(module).ReadAll());
+}
+// }}}
