@@ -3,6 +3,9 @@
 HEX_BASE = 16;
 MAX_BYTE = 255;
 
+// For ASCII or ANSI.
+CHAR_SIZE = 1;
+
 
 /*
  * Translates each byte [0 .. 255] from `byte_iterator` into "xHH" hex triplet
@@ -42,22 +45,29 @@ function xHHGenerator(byte_iterator) {
   this.Empty = byte_iterator.Empty;
 
   this.Next = function() {
-
-    if (!this.Empty()) {
-
-      var byte = byte_iterator.Next();
-
-      if (byte < 0 || MAX_BYTE < byte)
-        throw new Error("Invalid byte value!");
-
-      return (byte < HEX_BASE ? "x0" : "x") +
-        byte.toString(HEX_BASE).toUpperCase();
-    }
+    if (!this.Empty())
+      return xHH(byte_iterator.Next());
   }
 }
 
 
+/*
+ * Converts `byte` [0 .. 255] to string ["x00" .. "xFF"].
+ */
+function xHH(byte) {
+
+  if (byte < 0 || MAX_BYTE < byte)
+    throw new Error("Invalid byte value!");
+
+  return (byte < HEX_BASE ? "x0" : "x") +
+    byte.toString(HEX_BASE).toUpperCase();
+}
+
+
 return {
+  HEX_BASE: HEX_BASE,
+  MAX_BYTE: MAX_BYTE,
+  CHAR_SIZE: CHAR_SIZE,
   xHHGenerator: xHHGenerator,
   HexlineGenerator: HexlineGenerator
 };

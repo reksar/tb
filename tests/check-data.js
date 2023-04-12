@@ -1,7 +1,7 @@
 FS = new ActiveXObject("Scripting.FileSystemObject");
 TEST_DIR = FS.GetParentFolderName(WScript.ScriptFullName);
-DATA_DIR = FS.BuildPath(TEST_DIR, "data");
 
+var util = ImportUtil();
 
 WScript.Echo("Checking test data ...");
 
@@ -72,9 +72,10 @@ function PassData(data, callback) {
 
 
 function DataFiles(data) {
+  var data_dir = FS.BuildPath(TEST_DIR, "data");
   return {
-    bin_file: FS.BuildPath(DATA_DIR, data.name + ".bin"),
-    log_file: FS.BuildPath(DATA_DIR, data.name + ".log")
+    bin_file: FS.BuildPath(data_dir, data.name + ".bin"),
+    log_file: FS.BuildPath(data_dir, data.name + ".log")
   };
 }
 
@@ -108,9 +109,11 @@ function ElapsedTime(data) {
 
 
 function HexIterators(data) {
+  var actual_hex = new util.xHHGenerator(new ByteIterator(data.bin_file));
+  var expected_hex = new xHHIterator(new LineIterator(data.log_file));
   return {
-    actual: new CountIterator(new BinHexIterator(data.bin_file)),
-    expected: new CountIterator(new TxtHexIterator(data.log_file))
+    actual: new CountIterator(actual_hex),
+    expected: new CountIterator(expected_hex)
   };
 }
 
@@ -199,6 +202,9 @@ function ExtendData(origin, extra) {
 }
 
 
+/*
+ * Iterates over lines of a text `file`.
+ */
 function LineIterator(file) {
 
   var txt = FS.OpenTextFile(file);
@@ -214,12 +220,14 @@ function LineIterator(file) {
 }
 
 
-function BinHexIterator(file) {
+/*
+ * Iterates over the byte values of a `bin_file`.
+ */
+function ByteIterator(bin_file) {
 
-  // We are working in ASCII mode.
-  CHAR_SIZE = 1;
-
-  var txt = FS.OpenTextFile(file);
+  // To avoid using ADODB, we read `bin_file` as text and `DecodeChar`s to get
+  // the actual byte values.
+  var txt = FS.OpenTextFile(bin_file);
 
   this.Empty = function() {
     return txt.AtEndOfStream;
@@ -227,20 +235,92 @@ function BinHexIterator(file) {
 
   this.Next = function() {
     if (!this.Empty())
-      return xHH(DecodeChar(txt.Read(CHAR_SIZE)));
+      return DecodeChar(txt.Read(util.CHAR_SIZE));
+  }
+
+  function DecodeChar(char) {
+
+    // An integer between 0 and 65535 representing the UTF-16 code unit.
+    // See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/charCodeAt
+    var code = char.charCodeAt(0);
+
+    if (code <= util.MAX_BYTE) return code;
+
+    // This script reads test bin files as text in system default encoding,
+    // e.g. cp1251 or cp1252. Most of byte values [128 .. 255] can be encoded
+    // as chars with codes > 255.
+
+    // Here is the decoding for cp1251.
+
+    if (1040 <= code && code <= 1103) return code - 848;
+
+    switch (code) {
+      case 1026: return 128;
+      case 1027: return 129;
+      case 8218: return 130;
+      case 1107: return 131;
+      case 8222: return 132;
+      case 8230: return 133;
+      case 8224: return 134;
+      case 8225: return 135;
+      case 8364: return 136;
+      case 8240: return 137;
+      case 1033: return 138;
+      case 8249: return 139;
+      case 1034: return 140;
+      case 1036: return 141;
+      case 1035: return 142;
+      case 1039: return 143;
+      case 1106: return 144;
+      case 8216: return 145;
+      case 8217: return 146;
+      case 8220: return 147;
+      case 8221: return 148;
+      case 8226: return 149;
+      case 8211: return 150;
+      case 8212: return 151;
+      case 8482: return 153;
+      case 1113: return 154;
+      case 8250: return 155;
+      case 1114: return 156;
+      case 1116: return 157;
+      case 1115: return 158;
+      case 1119: return 159;
+      case 1038: return 161;
+      case 1118: return 162;
+      case 1032: return 163;
+      case 1168: return 165;
+      case 1025: return 168;
+      case 1028: return 170;
+      case 1031: return 175;
+      case 1030: return 178;
+      case 1110: return 179;
+      case 1169: return 180;
+      case 1105: return 184;
+      case 8470: return 185;
+      case 1108: return 186;
+      case 1112: return 188;
+      case 1029: return 189;
+      case 1109: return 190;
+      case 1111: return 191;
+    }
+
+    throw new Error("Char decoding error! Mind your system codepage.");
   }
 }
 
 
-function TxtHexIterator(file) {
+/*
+ * Iterates over "xHH" hex triplets of all hexlines from `hexline_iterator`.
+ */
+function xHHIterator(hexline_iterator) {
 
   xHH_RE = new RegExp(/^x[0-9A-F]{2}$/);
   xHH_LENGTH = 3;
 
-  var lines = new LineIterator(file);
-  var line = lines.Next();
+  var hexline = hexline_iterator.Next();
   var i = 0;
-  var xHH = ReadNext();
+  var xHH = NextxHH();
 
   this.Empty = function() {
     return !xHH;
@@ -249,19 +329,24 @@ function TxtHexIterator(file) {
   this.Next = function() {
     if (!this.Empty()) {
       var current = xHH;
-      xHH = ReadNext();
+      xHH = NextxHH();
       return current;
     }
   }
 
-  function ReadNext() {
+  /*
+   * Looks ahead to predict the emptiness of this iterator when a `hexline`
+   * has not yet been fully processed, but the next content does not match
+   * `xHH_RE`, i.e. no more "xHH" triplets or the chain is broken.
+   */
+  function NextxHH() {
 
-    if (line.length <= i) {
-      line = lines.Next();
+    if (hexline.length <= i) {
+      hexline = hexline_iterator.Next();
       i = 0;
     }
 
-    var match = line.substring(i, i += xHH_LENGTH).match(xHH_RE);
+    var match = hexline.substring(i, i += xHH_LENGTH).match(xHH_RE);
     return match && match[0];
   }
 }
@@ -284,89 +369,6 @@ function CountIterator(iterable) {
     if (!this.Empty())
       return ++count && iterable.Next();
   }
-}
-
-
-function DecodeChar(char) {
-
-  MAX_BYTE = 255;
-
-  // An integer between 0 and 65535 representing the UTF-16 code unit.
-  // See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/charCodeAt
-  var code = char.charCodeAt(0);
-
-  if (code <= MAX_BYTE) return code;
-
-  // This script reads test bin files as text in system default encoding,
-  // e.g. cp1251 or cp1252. Most of byte values [128 .. 255] can be encoded as
-  // chars with codes > 255.
-
-  // Here is the decoding for cp1251.
-
-  if (1040 <= code && code <= 1103) return code - 848;
-
-  switch (code) {
-		case 1026: return 128;
-		case 1027: return 129;
-		case 8218: return 130;
-		case 1107: return 131;
-		case 8222: return 132;
-		case 8230: return 133;
-		case 8224: return 134;
-		case 8225: return 135;
-		case 8364: return 136;
-		case 8240: return 137;
-		case 1033: return 138;
-		case 8249: return 139;
-		case 1034: return 140;
-		case 1036: return 141;
-		case 1035: return 142;
-		case 1039: return 143;
-		case 1106: return 144;
-		case 8216: return 145;
-		case 8217: return 146;
-		case 8220: return 147;
-		case 8221: return 148;
-		case 8226: return 149;
-		case 8211: return 150;
-		case 8212: return 151;
-		case 8482: return 153;
-		case 1113: return 154;
-		case 8250: return 155;
-		case 1114: return 156;
-		case 1116: return 157;
-		case 1115: return 158;
-		case 1119: return 159;
-		case 1038: return 161;
-		case 1118: return 162;
-		case 1032: return 163;
-		case 1168: return 165;
-		case 1025: return 168;
-		case 1028: return 170;
-		case 1031: return 175;
-		case 1030: return 178;
-		case 1110: return 179;
-		case 1169: return 180;
-		case 1105: return 184;
-		case 8470: return 185;
-		case 1108: return 186;
-		case 1112: return 188;
-		case 1029: return 189;
-		case 1109: return 190;
-		case 1111: return 191;
-  }
-
-  throw new Error("Char decoding error! Mind your system codepage.");
-}
-
-
-/*
- * Converts `int_byte` [0 .. 255] to the string ["x00" .. "xFF"].
- */
-function xHH(int_byte) {
-  HEX_BASE = 16;
-  var hex_byte = int_byte.toString(HEX_BASE).toUpperCase();
-  return (hex_byte.length == 1 ? "x0" : "x") + hex_byte;
 }
 
 
@@ -394,6 +396,13 @@ function ReduceArray(array, callback, initial) {
   while (i < array.length)
     result = callback(result, array[i++]);
   return result;
+}
+
+
+function ImportUtil() {
+  var root = FS.GetParentFolderName(TEST_DIR);
+  var module = FS.BuildPath(root, "util.js");
+  return eval(FS.OpenTextFile(module).ReadAll());
 }
 
 
