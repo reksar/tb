@@ -1,7 +1,7 @@
 FS = new ActiveXObject("Scripting.FileSystemObject");
 TEST_DIR = FS.GetParentFolderName(WScript.ScriptFullName);
 
-var util = ImportUtil();
+var lib = ImportLib();
 
 WScript.Echo("Checking test data ...");
 
@@ -109,7 +109,7 @@ function ElapsedTime(data) {
 
 
 function HexIterators(data) {
-  var actual_hex = new util.xHHGenerator(new ByteIterator(data.bin_file));
+  var actual_hex = new lib.xHHGenerator(new ByteIterator(data.bin_file));
   var expected_hex = new xHHIterator(new LineIterator(data.log_file));
   return {
     actual: new CountIterator(actual_hex),
@@ -235,7 +235,7 @@ function ByteIterator(bin_file) {
 
   this.Next = function() {
     if (!this.Empty())
-      return DecodeChar(txt.Read(util.CHAR_SIZE));
+      return DecodeChar(txt.Read(lib.CHAR_SIZE));
   }
 
   function DecodeChar(char) {
@@ -244,7 +244,7 @@ function ByteIterator(bin_file) {
     // See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/charCodeAt
     var code = char.charCodeAt(0);
 
-    if (code <= util.MAX_BYTE) return code;
+    if (code <= lib.MAX_BYTE) return code;
 
     // This script reads test bin files as text in system default encoding,
     // e.g. cp1251 or cp1252. Most of byte values [128 .. 255] can be encoded
@@ -399,9 +399,9 @@ function ReduceArray(array, callback, initial) {
 }
 
 
-function ImportUtil() {
+function ImportLib() {
   var root = FS.GetParentFolderName(TEST_DIR);
-  var module = FS.BuildPath(root, "util.js");
+  var module = FS.BuildPath(root, "lib.js");
   return eval(FS.OpenTextFile(module).ReadAll());
 }
 

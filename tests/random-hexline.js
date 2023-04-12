@@ -12,7 +12,7 @@
 
 FS = new ActiveXObject("Scripting.FileSystemObject");
 
-var util = ImportUtil();
+var lib = ImportLib();
 
 
 // Parse args {{{
@@ -23,15 +23,15 @@ var outfile = WScript.Arguments(3);
 
 if (byte_count <= 0)
   throw new Error("Invalid byte_count!");
-if (min_byte < 0 || util.MAX_BYTE < min_byte)
+if (min_byte < 0 || lib.MAX_BYTE < min_byte)
   throw new Error("Invalid min_byte!");
-if (max_byte < min_byte || util.MAX_BYTE < max_byte)
+if (max_byte < min_byte || lib.MAX_BYTE < max_byte)
   throw new Error("Invalid max_byte!");
 // }}}
 
 
 var random_bytes = new RandomGenerator(byte_count, min_byte, max_byte);
-var hexlines = new util.HexlineGenerator(random_bytes);
+var hexlines = new lib.HexlineGenerator(random_bytes);
 
 with (FS.CreateTextFile(outfile, /*rewrite*/true))
   while (!hexlines.Empty())
@@ -56,10 +56,10 @@ function RandomGenerator(count, min, max) {
 }
 
 
-function ImportUtil() {
+function ImportLib() {
   var tests = FS.GetParentFolderName(WScript.ScriptFullName);
   var root = FS.GetParentFolderName(tests);
-  var module = FS.BuildPath(root, "util.js");
+  var module = FS.BuildPath(root, "lib.js");
   return eval(FS.OpenTextFile(module).ReadAll());
 }
 // }}}
