@@ -2,6 +2,7 @@
 
 HEX_BASE = 16;
 MAX_BYTE = 255;
+MIN_ANSI = 128;
 
 // For ASCII or ANSI.
 CHAR_SIZE = 1;
@@ -68,6 +69,7 @@ return {
   HEX_BASE: HEX_BASE,
   MAX_BYTE: MAX_BYTE,
   CHAR_SIZE: CHAR_SIZE,
+  MIN_ANSI: MIN_ANSI,
   xHHGenerator: xHHGenerator,
   HexlineGenerator: HexlineGenerator
 };

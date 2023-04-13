@@ -1,7 +1,8 @@
 FS = new ActiveXObject("Scripting.FileSystemObject");
 TEST_DIR = FS.GetParentFolderName(WScript.ScriptFullName);
-
-var lib = ImportLib();
+ROOT = FS.GetParentFolderName(TEST_DIR);
+LIB = eval(FS.OpenTextFile(FS.BuildPath(ROOT, "lib.js")).ReadAll());
+ANSI_CODE_PAGE = ReadAnsiCodePage();
 
 WScript.Echo("Checking test data ...");
 
@@ -109,7 +110,7 @@ function ElapsedTime(data) {
 
 
 function HexIterators(data) {
-  var actual_hex = new lib.xHHGenerator(new ByteIterator(data.bin_file));
+  var actual_hex = new LIB.xHHGenerator(new ByteIterator(data.bin_file));
   var expected_hex = new xHHIterator(new LineIterator(data.log_file));
   return {
     actual: new CountIterator(actual_hex),
@@ -235,7 +236,7 @@ function ByteIterator(bin_file) {
 
   this.Next = function() {
     if (!this.Empty())
-      return DecodeChar(txt.Read(lib.CHAR_SIZE));
+      return DecodeChar(txt.Read(LIB.CHAR_SIZE));
   }
 
   function DecodeChar(char) {
@@ -244,68 +245,7 @@ function ByteIterator(bin_file) {
     // See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/charCodeAt
     var code = char.charCodeAt(0);
 
-    if (code <= lib.MAX_BYTE) return code;
-
-    // This script reads test bin files as text in system default encoding,
-    // e.g. cp1251 or cp1252. Most of byte values [128 .. 255] can be encoded
-    // as chars with codes > 255.
-
-    // Here is the decoding for cp1251.
-
-    if (1040 <= code && code <= 1103) return code - 848;
-
-    switch (code) {
-      case 1026: return 128;
-      case 1027: return 129;
-      case 8218: return 130;
-      case 1107: return 131;
-      case 8222: return 132;
-      case 8230: return 133;
-      case 8224: return 134;
-      case 8225: return 135;
-      case 8364: return 136;
-      case 8240: return 137;
-      case 1033: return 138;
-      case 8249: return 139;
-      case 1034: return 140;
-      case 1036: return 141;
-      case 1035: return 142;
-      case 1039: return 143;
-      case 1106: return 144;
-      case 8216: return 145;
-      case 8217: return 146;
-      case 8220: return 147;
-      case 8221: return 148;
-      case 8226: return 149;
-      case 8211: return 150;
-      case 8212: return 151;
-      case 8482: return 153;
-      case 1113: return 154;
-      case 8250: return 155;
-      case 1114: return 156;
-      case 1116: return 157;
-      case 1115: return 158;
-      case 1119: return 159;
-      case 1038: return 161;
-      case 1118: return 162;
-      case 1032: return 163;
-      case 1168: return 165;
-      case 1025: return 168;
-      case 1028: return 170;
-      case 1031: return 175;
-      case 1030: return 178;
-      case 1110: return 179;
-      case 1169: return 180;
-      case 1105: return 184;
-      case 8470: return 185;
-      case 1108: return 186;
-      case 1112: return 188;
-      case 1029: return 189;
-      case 1109: return 190;
-      case 1111: return 191;
-    }
-
-    throw new Error("Char decoding error! Mind your system codepage.");
+    return code <= LIB.MAX_BYTE ? code : ANSI_CODE_PAGE[char];
   }
 }
 
@@ -399,10 +339,22 @@ function ReduceArray(array, callback, initial) {
 }
 
 
-function ImportLib() {
-  var root = FS.GetParentFolderName(TEST_DIR);
-  var module = FS.BuildPath(root, "lib.js");
-  return eval(FS.OpenTextFile(module).ReadAll());
+/*
+ * Reads bytes in the ANSI code range [128 .. 255] from bin files as chars
+ * corresponding to the system code page.
+ */
+function ReadAnsiCodePage() {
+
+  function AnsiChar(ansi_code) {
+    var file = FS.BuildPath(ROOT, "bytes\\"+ansi_code+".bin");
+    with (FS.OpenTextFile(file))
+      return Read(LIB.CHAR_SIZE);
+  }
+
+  var code_page = {};
+  for (var code = LIB.MIN_ANSI; code <= LIB.MAX_BYTE; code++)
+    code_page[AnsiChar(code)] = code;
+  return code_page;
 }
 
 
