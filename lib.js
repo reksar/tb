@@ -65,13 +65,43 @@ function xHH(byte) {
 }
 
 
+/*
+ * Returns an array of chars indexed by their codes, built depending on the
+ * system code page.
+ *
+ * NOTE: it is not possible to determine the "bytes" dir path inside this
+ * module, so it must be passed as an argument.
+ */
+function CodePage(bytes_dir) {
+
+  var codespage = [];
+
+  // ASCII
+  for (var code = 0; code < MIN_ANSI; code++)
+    codespage[code] = String.fromCharCode(code);
+
+  var fs = new ActiveXObject("Scripting.FileSystemObject");
+
+  // ANSI
+  // Reproducting the system code page based on the results of decoding the
+  // contents of bin files.
+  for (var code = MIN_ANSI; code <= MAX_BYTE; code++)
+    with (fs.OpenTextFile(fs.BuildPath(bytes_dir, code + ".bin")))
+      codespage[code] = Read(CHAR_SIZE);
+
+  return codespage;
+}
+
+
 return {
   HEX_BASE: HEX_BASE,
   MAX_BYTE: MAX_BYTE,
   CHAR_SIZE: CHAR_SIZE,
   MIN_ANSI: MIN_ANSI,
   xHHGenerator: xHHGenerator,
-  HexlineGenerator: HexlineGenerator
+  HexlineGenerator: HexlineGenerator,
+  CodePage: CodePage
 };
 
+// TODO: check if we can determine a path here.
 }).call();

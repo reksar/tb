@@ -2,7 +2,7 @@ FS = new ActiveXObject("Scripting.FileSystemObject");
 TEST_DIR = FS.GetParentFolderName(WScript.ScriptFullName);
 ROOT = FS.GetParentFolderName(TEST_DIR);
 LIB = eval(FS.OpenTextFile(FS.BuildPath(ROOT, "lib.js")).ReadAll());
-ANSI_CODE_PAGE = ReadAnsiCodePage();
+CHARCODES = Charcodes();
 
 WScript.Echo("Checking test data ...");
 
@@ -236,16 +236,7 @@ function ByteIterator(bin_file) {
 
   this.Next = function() {
     if (!this.Empty())
-      return DecodeChar(txt.Read(LIB.CHAR_SIZE));
-  }
-
-  function DecodeChar(char) {
-
-    // An integer between 0 and 65535 representing the UTF-16 code unit.
-    // See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/charCodeAt
-    var code = char.charCodeAt(0);
-
-    return code <= LIB.MAX_BYTE ? code : ANSI_CODE_PAGE[char];
+      return CHARCODES[txt.Read(LIB.CHAR_SIZE)];
   }
 }
 
@@ -340,21 +331,17 @@ function ReduceArray(array, callback, initial) {
 
 
 /*
- * Reads bytes in the ANSI code range [128 .. 255] from bin files as chars
- * corresponding to the system code page.
+ * A `codepage` is an array of chars indexed by their codes. A `charcodes` is
+ * a reversed `codepage` - a dict used to get the char code using the char as
+ * a key.
  */
-function ReadAnsiCodePage() {
-
-  function AnsiChar(ansi_code) {
-    var file = FS.BuildPath(ROOT, "bytes\\"+ansi_code+".bin");
-    with (FS.OpenTextFile(file))
-      return Read(LIB.CHAR_SIZE);
-  }
-
-  var code_page = {};
-  for (var code = LIB.MIN_ANSI; code <= LIB.MAX_BYTE; code++)
-    code_page[AnsiChar(code)] = code;
-  return code_page;
+function Charcodes() {
+  var bytes = FS.BuildPath(ROOT, "bytes");
+  var codepage = LIB.CodePage(bytes);
+  var charcodes = {};
+  for (var code = 0; code < codepage.length; code++)
+    charcodes[codepage[code]] = code;
+  return charcodes;
 }
 
 
