@@ -3,9 +3,7 @@
 HEX_BASE = 16;
 MAX_BYTE = 255;
 MIN_ANSI = 128;
-
-// For ASCII or ANSI.
-CHAR_SIZE = 1;
+CHAR_SIZE = 1; // ASCII/ANSI
 
 
 /*
@@ -66,11 +64,12 @@ function xHH(byte) {
 
 
 /*
- * Returns an array of chars indexed by their codes, built depending on the
- * system code page.
+ * Returns an array of chars indexed by their ANSI codes, built depending on
+ * the system code page.
  *
- * NOTE: it is not possible to determine the "bytes" dir path inside this
- * module, so it must be passed as an argument.
+ * NOTE: even though the "bytes" dir is nearby to the current lib, we cannot
+ * determine the path to `bytes_dir` from here, so it must be passed as an
+ * argument.
  */
 function CodePage(bytes_dir) {
 
@@ -83,8 +82,7 @@ function CodePage(bytes_dir) {
   var fs = new ActiveXObject("Scripting.FileSystemObject");
 
   // ANSI
-  // Reproducting the system code page based on the results of decoding the
-  // contents of bin files.
+  // Reproducing the system code page based on the results of its work.
   for (var code = MIN_ANSI; code <= MAX_BYTE; code++)
     with (fs.OpenTextFile(fs.BuildPath(bytes_dir, code + ".bin")))
       codespage[code] = Read(CHAR_SIZE);
@@ -103,5 +101,4 @@ return {
   CodePage: CodePage
 };
 
-// TODO: check if we can determine a path here.
 }).call();
