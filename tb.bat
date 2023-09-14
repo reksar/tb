@@ -3,15 +3,15 @@
 rem  --------------------------------------------------------------------------
 rem  Translates {hexline} to bytes and *appends* them to {outfile}:
 rem
-rem    tb {hexline} {outfile}
+rem    tb [hexline] [outfile]
 rem
 rem    tb x00x46x6Fx6FxFF file.bin
 rem
 rem  This is a port of UNIX-like `echo -n -e '\x00\x46\x6F\x6F\xFF' > file.bin`
 rem  for Windows.
 rem
-rem  The idea is to use `copy /b bytes\<byte>.bin + {outfile} {outfile}` for
-rem  appending a <byte> [0 .. 255] to {outfile}.
+rem  The idea is to use `copy /b bytes\<byte>.bin + [outfile] [outfile]` for
+rem  appending a <byte> [0 .. 255] to `[outfile]`.
 rem  --------------------------------------------------------------------------
 
 rem  NOTE: `DisableDelayedExpansion` to process some path symbols correctly,
